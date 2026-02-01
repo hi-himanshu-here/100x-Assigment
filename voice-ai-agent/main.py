@@ -1,4 +1,6 @@
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from agent import SYSTEM_PROMPT
@@ -8,6 +10,12 @@ import os
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 app = FastAPI()
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/")
+def read_root():
+    return FileResponse("static/index.html")
 
 app.add_middleware(
     CORSMiddleware,
