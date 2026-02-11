@@ -1,21 +1,14 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from agent import SYSTEM_PROMPT
-import openai
+from openai import OpenAI
 import os
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 app = FastAPI()
-
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-@app.get("/")
-def read_root():
-    return FileResponse("static/index.html")
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,21 +17,34 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/")
+def read_root():
+    return FileResponse("static/index.html")
+
+
 class UserInput(BaseModel):
     message: str
 
+
+SYSTEM_PROMPT = """
+You are Himanshu Tiwari, a student at IIT Dhanbad.
+Answer naturally, clearly, and like a real human in an interview.
+"""
+
+
 @app.post("/chat")
 async def chat(user_input: UserInput):
-    response = openai.ChatCompletion.create(
+
+    response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_input.message}
+            {"role": "user", "content": user_input.message},
         ],
         temperature=0.6,
-        max_tokens=200
+        max_tokens=200,
     )
 
-    return {
-        "response": response.choices[0].message["content"]
-    }
+    return {"response": response.choices[0].message.content}
