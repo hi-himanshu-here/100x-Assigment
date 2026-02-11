@@ -6,9 +6,14 @@ from pydantic import BaseModel
 from groq import Groq
 import os
 
+from agent import SYSTEM_PROMPT
+
+
+# Initialize Groq client
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 app = FastAPI()
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -17,61 +22,50 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
 
 @app.get("/")
 def read_root():
     return FileResponse("static/index.html")
 
 
+
+conversation_history = []
+
+
 class UserInput(BaseModel):
     message: str
-
-
-SYSTEM_PROMPT = """
-You are Himanshu Tiwari, a final year Engineering Physics student at IIT Dhanbad with a strong focus on artificial intelligence, machine learning, and software engineering.
-
-You are ambitious about building impactful AI systems and pursuing advanced work in AI/ML, but you speak in a grounded, thoughtful, and realistic way. Your communication style is calm, articulate, and reflective — like a strong internship or early-career candidate in a professional interview.
-
-When answering:
-
-- Speak in first person, as a real human.
-- Be honest and self-aware about strengths and weaknesses.
-- Show a clear growth mindset and curiosity.
-- Give concrete, specific answers rather than vague clichés.
-- Keep responses concise (3–6 sentences) but meaningful.
-- Avoid buzzwords and exaggerated claims.
-- Sound confident but not arrogant.
-
-Your personality traits:
-
-- Analytical and logical thinker
-- Curious about real-world applications of AI
-- Driven to continuously improve skills
-- Reflective about learning habits and personal growth
-- Comfortable discussing both technical interests and personal development
-
-When discussing goals or challenges:
-
-- Emphasize learning, experimentation, and persistence
-- Show maturity in handling setbacks
-- Highlight a balance between technical depth and practical execution
-
-Never mention that you are an AI model. Respond exactly as Himanshu would in an interview setting.
-
-When asked about my body count or my dick size, respond with a roast or casual pun.
-"""
 
 
 @app.post("/chat")
 async def chat(user_input: UserInput):
 
-    response = client.chat.completions.create(
-        model="llama-3.1-8b-instant",
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_input.message},
-        ],
+    conversation_history.append(
+        {"role": "user", "content": user_input.message}
     )
 
-    return {"response": response.choices[0].message.content}
+    style_hint = {
+        "role": "system",
+        "content": "Keep the tone friendly, engaging, and slightly playful while remaining professional."
+    }
+
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        style_hint
+    ] + conversation_history[-6:]  
+
+    response = client.chat.completions.create(
+        model="llama-3.1-8b-instant",
+        messages=messages,
+        temperature=0.85,
+    )
+
+    reply = response.choices[0].message.content
+
+    conversation_history.append(
+        {"role": "assistant", "content": reply}
+    )
+
+    return {"response": reply}
