@@ -2,37 +2,97 @@
 <html>
 <head>
   <title>Himanshu AI Voice Agent</title>
-</head>
-<body>
-  <h2>🎙️ Talk to Himanshu (AI)</h2>
-  <button onclick="startListening()">Start Talking</button>
-  <p id="userText"></p>
-  <p id="aiText"></p>
-
-  <script>
-    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.lang = 'en-US';
-
-    function startListening() {
-      recognition.start();
+  <style>
+    body {
+      font-family: Arial;
+      max-width: 700px;
+      margin: auto;
+      padding: 20px;
     }
 
-    recognition.onresult = async function(event) {
-      const text = event.results[0][0].transcript;
-      document.getElementById("userText").innerText = "You: " + text;
+    #chat {
+      border: 1px solid #ccc;
+      padding: 10px;
+      height: 400px;
+      overflow-y: auto;
+      margin-bottom: 10px;
+    }
 
-      const res = await fetch("/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text })
-      });
+    .user {
+      color: blue;
+      margin: 5px 0;
+    }
 
-      const data = await res.json();
-      document.getElementById("aiText").innerText = "Himanshu AI: " + data.response;
+    .ai {
+      color: green;
+      margin: 5px 0;
+    }
 
-      const speech = new SpeechSynthesisUtterance(data.response);
-      speechSynthesis.speak(speech);
-    };
-  </script>
+    button {
+      padding: 10px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+
+<body>
+
+<h2>🎙️ Talk to Himanshu (AI Voice Agent)</h2>
+
+<div id="chat"></div>
+
+<button onclick="startListening()">Start Talking</button>
+
+<script>
+
+const chatBox = document.getElementById("chat");
+
+function addMessage(text, className) {
+  const div = document.createElement("div");
+  div.className = className;
+  div.innerText = text;
+  chatBox.appendChild(div);
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+recognition.lang = "en-US";
+
+function startListening() {
+  addMessage("🎤 Listening...", "user");
+  recognition.start();
+}
+
+recognition.onresult = async function(event) {
+  const userText = event.results[0][0].transcript;
+
+  addMessage("You: " + userText, "user");
+
+  try {
+    const res = await fetch("/chat", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ message: userText })
+    });
+
+    const data = await res.json();
+
+    addMessage("Himanshu AI: " + data.response, "ai");
+
+    const speech = new SpeechSynthesisUtterance(data.response);
+    speechSynthesis.speak(speech);
+
+  } catch (error) {
+    addMessage("❌ Error contacting server", "ai");
+    console.error(error);
+  }
+};
+
+recognition.onerror = function(event) {
+  addMessage("❌ Speech recognition error: " + event.error, "ai");
+};
+
+</script>
+
 </body>
 </html>
