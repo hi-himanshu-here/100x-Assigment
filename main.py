@@ -3,10 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from openai import OpenAI
+from groq import Groq
 import os
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 app = FastAPI()
 
@@ -38,13 +38,11 @@ Answer naturally, clearly, and like a real human in an interview.
 async def chat(user_input: UserInput):
 
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="llama3-8b-8192",
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_input.message},
         ],
-        temperature=0.6,
-        max_tokens=200,
     )
 
     return {"response": response.choices[0].message.content}
