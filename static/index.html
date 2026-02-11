@@ -4,33 +4,35 @@
   <title>Himanshu AI Voice Agent</title>
   <style>
     body {
-      font-family: Arial;
-      max-width: 700px;
+      font-family: Arial, sans-serif;
+      max-width: 720px;
       margin: auto;
       padding: 20px;
     }
-
     #chat {
       border: 1px solid #ccc;
-      padding: 10px;
-      height: 400px;
+      padding: 12px;
+      height: 420px;
       overflow-y: auto;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
     }
-
     .user {
-      color: blue;
-      margin: 5px 0;
+      color: #1a4cff;
+      margin: 6px 0;
     }
-
     .ai {
-      color: green;
-      margin: 5px 0;
+      color: #0a7a28;
+      margin: 6px 0;
     }
-
     button {
-      padding: 10px;
-      font-size: 16px;
+      padding: 10px 14px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    input {
+      padding: 8px;
+      width: 75%;
+      margin-right: 6px;
     }
   </style>
 </head>
@@ -41,57 +43,97 @@
 
 <div id="chat"></div>
 
-<button onclick="startListening()">Start Talking</button>
+<button onclick="startListening()">🎤 Speak</button>
+<br><br>
+
+<input id="textInput" placeholder="Or type your question here…" />
+<button onclick="sendText()">Send</button>
 
 <script>
+  const chatBox = document.getElementById("chat");
 
-const chatBox = document.getElementById("chat");
-
-function addMessage(text, className) {
-  const div = document.createElement("div");
-  div.className = className;
-  div.innerText = text;
-  chatBox.appendChild(div);
-  chatBox.scrollTop = chatBox.scrollHeight;
-}
-
-const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-recognition.lang = "en-US";
-
-function startListening() {
-  addMessage("🎤 Listening...", "user");
-  recognition.start();
-}
-
-recognition.onresult = async function(event) {
-  const userText = event.results[0][0].transcript;
-
-  addMessage("You: " + userText, "user");
-
-  try {
-    const res = await fetch("/chat", {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({ message: userText })
-    });
-
-    const data = await res.json();
-
-    addMessage("Himanshu AI: " + data.response, "ai");
-
-    const speech = new SpeechSynthesisUtterance(data.response);
-    speechSynthesis.speak(speech);
-
-  } catch (error) {
-    addMessage("❌ Error contacting server", "ai");
-    console.error(error);
+  function addMessage(text, className) {
+    const div = document.createElement("div");
+    div.className = className;
+    div.innerText = text;
+    chatBox.appendChild(div);
+    chatBox.scrollTop = chatBox.scrollHeight;
   }
-};
 
-recognition.onerror = function(event) {
-  addMessage("❌ Speech recognition error: " + event.error, "ai");
-};
+  /* ---------------- SPEECH RECOGNITION ---------------- */
 
+  const SpeechRecognition =
+    window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  const recognition = new SpeechRecognition();
+  recognition.lang = "en-US";
+
+  function startListening() {
+    addMessage("🎤 Listening…", "user");
+    recognition.start();
+  }
+
+  recognition.onresult = (event) => {
+    const text = event.results[0][0].transcript;
+    addMessage("You: " + text, "user");
+    sendToBackend(text);
+  };
+
+  recognition.onerror = (e) => {
+    addMessage("❌ Speech error: " + e.error, "ai");
+  };
+
+  /* ---------------- TEXT INPUT ---------------- */
+
+  function sendText() {
+    const text = document.getElementById("textInput").value;
+    if (!text) return;
+    addMessage("You: " + text, "user");
+    sendToBackend(text);
+    document.getElementById("textInput").value = "";
+  }
+
+  /* ---------------- TEXT → SPEECH ---------------- */
+
+  function speak(text) {
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+
+    const voices = speechSynthesis.getVoices();
+    if (voices.length > 0) {
+      utterance.voice = voices.find(v => v.lang.includes("en")) || voices[0];
+    }
+
+    speechSynthesis.speak(utterance);
+  }
+
+  // Ensure voices are loaded
+  speechSynthesis.onvoiceschanged = () => {};
+
+  /* ---------------- BACKEND CALL ---------------- */
+
+  async function sendToBackend(text) {
+    try {
+      const res = await fetch("/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text })
+      });
+
+      const data = await res.json();
+      addMessage("Himanshu AI: " + data.response, "ai");
+      speak(data.response);
+
+    } catch (err) {
+      addMessage("❌ Server error", "ai");
+      console.error(err);
+    }
+  }
 </script>
 
 </body>
